@@ -15,7 +15,7 @@ endif()
 # program queries that ended the process (ps5-opengl#9) and no longer prints
 # draw statistics while the game runs. -DPS5_OPENGL_SDK=... selects another.
 if(NOT PS5_OPENGL_SDK)
-    set(PS5_OPENGL_SDK "${CMAKE_CURRENT_LIST_DIR}/sdk-102/unpacked/ps5-opengl-sdk-1.0.2/sdk")
+    set(PS5_OPENGL_SDK "${CMAKE_CURRENT_LIST_DIR}/../.deps/ps5-opengl/1.0.2/sdk") # tools/setup-glsdk.sh
 endif()
 
 set(OPENGL_FOUND TRUE)

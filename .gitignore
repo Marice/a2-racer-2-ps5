@@ -4,3 +4,9 @@
 /.deps/
 /src-upstream/
 /A2 Racer II*
+/dump/
+/game-data/
+/icon.png
+/background.jpg
+*:Zone.Identifier
+/pkg/
