@@ -32,8 +32,8 @@ void __wrap_SDL_Quit(void)
 		trace("SDL_Quit at the end of a race left out: SDL stays up for the menu");
 		return;
 	}
-	trace("SDL_Quit");
-	__real_SDL_Quit();
+	/* The menu's own quit, just before the title ends (D10): nothing of SDL's needs ending for that. */
+	trace("SDL_Quit left out: the title ends right after");
 }
 
 int __real_SDL_Init(Uint32 flags);

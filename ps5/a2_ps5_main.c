@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 int a2menu_main(int argc, char **argv); /* src/menu/a2menu.c, built with A2_PS5 */
 
@@ -55,5 +56,10 @@ int main(int argc, char **argv)
 	}
 
 	char *menu_argv[] = {"a2racer2", A2PS5_DATA_DIR, NULL};
-	return a2menu_main(2, menu_argv);
+	int status = a2menu_main(2, menu_argv);
+	/* The player chose to stop. A normal exit ran the static destructors twice (atexit's _fini and the loader's
+	   teardown) and ended in a crash report (D10); the process ends here instead, the log written first. */
+	fprintf(stderr, "a2: the menu closed (%d): the title ends\n", status);
+	fflush(NULL);
+	_exit(status);
 }

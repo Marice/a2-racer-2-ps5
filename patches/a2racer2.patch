@@ -58,7 +58,7 @@ index ef08314..a7323b3 100644
          glVertex2f(cx, y + h);
          cx += w + f->spacing * scale;
 diff --git a/port/src/main.c b/port/src/main.c
-index 0a87ad2..5829652 100644
+index 0a87ad2..4641b1e 100644
 --- a/port/src/main.c
 +++ b/port/src/main.c
 @@ -517,13 +517,18 @@ static void hud_radar(radar_map *m, const a2_scene *scene, const a2_sprites *hud
@@ -89,8 +89,8 @@ index 0a87ad2..5829652 100644
 +/* The DualSense as a wheel (ps5/a2_ps5_input.c): steering, throttle and brake
 + * as DEVICE 3 gives them, turbo and handbrake as its buttons 2 and 1. */
 +int a2ps5_drive(float *steer, float *throttle, float *brake, int *turbo, int *handbrake);
-+/* The DualSense's light bar flashes blue and red while the police chase the
-+ * player (ps5/a2_ps5_input.c, decision log D7). */
++/* The DualSense's light bar flashes blue and red while a police siren is
++ * heard (ps5/a2_ps5_input.c, decision log D9). */
 +void a2ps5_police(int chased);
 +#endif
 +
@@ -167,17 +167,31 @@ index 0a87ad2..5829652 100644
          /* The canvas's size is the page's (CSS), not the 1280x960 asked for,
           * and no resize event says so at the start: draw at what it really
           * is, or the viewport and the HUD run off its edges. */
-@@ -2747,6 +2781,9 @@ int main(int argc, char **argv)
+@@ -2747,6 +2781,8 @@ int main(int argc, char **argv)
               * first chase every police car shows it.  One sheet, so every
               * police car flashes together, the player's too in COP MODE.
               * 0x42ae90 does nothing without texturecopy. */
 +#ifdef A2_PS5
-+            a2ps5_police(a2_cops_chasing_player(cops));
 +#endif
              if (texture_copy && hud) {
                  int on = a2_cops_in_pursuit(cops);
                  Uint32 now = SDL_GetTicks();
-@@ -4516,10 +4553,13 @@ int main(int argc, char **argv)
+@@ -3944,6 +3980,14 @@ int main(int argc, char **argv)
+             float lx = drive_mode ? car.x : cam.pos[0], lz = drive_mode ? car.z : cam.pos[2];
+             float lyaw = (drive_mode ? car.yaw : cam.yaw) * (float)M_PI / 180.0f;
+             a2_audio_objects(audio, src, ns, lx, lz, sinf(lyaw), -cosf(lyaw));
++#ifdef A2_PS5
++            int siren_heard = 0;
++            for (int i = 0; i < ns; i++)
++                if (src[i].sample == 40 && src[i].key >= 3000 && src[i].key < 4000 &&
++                    a2_audio_object_playing(audio, src[i].key))
++                    siren_heard = 1;
++            a2ps5_police(siren_heard);
++#endif
+             for (int i = 0; i < np; i++)
+                 if (!a2_audio_object_playing(audio, ps[i].key))
+                     a2_scene_prop_sound_done(scene, ps[i].key);
+@@ -4516,10 +4560,13 @@ int main(int argc, char **argv)
                      if (age < 0.15f) {
                          glDisable(GL_TEXTURE_2D);
                          glColor4f(1.0f, 1.0f, 1.0f, 1.0f - age / 0.15f);

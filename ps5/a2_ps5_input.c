@@ -416,7 +416,7 @@ int a2ps5_in_race(void)
 	return g_in_race;
 }
 
-/* The police: the light bar flashes blue and red while a cop chases the player (decision log D7). */
+/* The police: the light bar flashes blue and red while a siren is heard (decision log D9). */
 typedef struct {
 	uint8_t r, g, b, reserved;
 } pad_color;
@@ -432,13 +432,13 @@ void a2ps5_police(int chased)
 	if (!chased) {
 		if (flashing) {
 			scePadResetLightBar(g_pad); /* the console's own colour again */
-			fprintf(stderr, "a2: police: the chase of the player ended\n");
+			fprintf(stderr, "a2: police: siren gone\n");
 		}
 		flashing = 0;
 		return;
 	}
 	if (!flashing)
-		fprintf(stderr, "a2: police: chasing the player, the light bar flashes\n");
+		fprintf(stderr, "a2: police: siren heard, the light bar flashes\n");
 	uint32_t now = SDL_GetTicks();
 	if (flashing && now - switched < 250)
 		return;
