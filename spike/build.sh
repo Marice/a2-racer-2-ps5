@@ -36,6 +36,9 @@ cp "$workspace/stk-ps5/pkg/stubs/"*.so "$build/pkg/stubs/"
 "$PS5_NATIVE_TOOL" link --in "$build/a2_gl_compat" --out "$build/pkg/eboot.elf" --stub-dir "$build/pkg/stubs" \
     --module-sdk 0x02000009 --companion-sdk 0x08050001 --file-name eboot.elf
 "$PS5_NATIVE_TOOL" self --sign --in "$build/pkg/eboot.elf" --out "$title/eboot.bin" --magic 0x1D3D154F
+# The C library the title imports; without it the console answers PRX_SCE_MODULE_LOAD_ERROR (0xa0020102).
+mkdir -p "$title/sce_module"
+cp "$workspace/stk-ps5/pkg/PPSA69421/sce_module/libc.prx" "$title/sce_module/libc.prx"
 cp "$here/param.json" "$title/sce_sys/param.json"
 cp "$workspace/stk-ps5/sce_sys/icon0.png" "$title/sce_sys/icon0.png" # placeholder icon for the check only
 ls -la "$title" "$title/sce_sys"
