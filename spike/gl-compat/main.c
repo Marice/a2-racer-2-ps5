@@ -4,7 +4,8 @@
  *
  * The checks follow what the race renderer calls (src/render.c, main.c, sprites.c, sky.c of a2racer2-re):
  * immediate mode, the matrix stack, client-side arrays with 32-bit indices, a non-power-of-two texture with
- * GL_REPEAT and GL_MODULATE, the alpha test, blending, glPushAttrib/glPopAttrib and glPolygonOffset. */
+ * GL_REPEAT and GL_MODULATE, the alpha test, blending, glPushAttrib/glPopAttrib and glPolygonOffset. Check 7 measures
+ * where the time of a frame goes (decision log D2). */
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #define GL_GLEXT_PROTOTYPES 1
@@ -348,33 +349,115 @@ static int check_attrib(char *detail, size_t cap)
 	return e == GL_NO_ERROR && blend == GL_TRUE;
 }
 
-/* 7. Load: 1,000 immediate-mode quads per frame, as the race's sprites and HUD draw; frame time without vsync. */
-static int g_frames;
-static double g_draw_seconds;
-static void draw_load(double t)
+/* 7. Where the time goes (D2): the same 1,000 quads (4,000 vertices) per frame in five ways, each warmed up for 2 s
+ * and measured for 4 s without vsync, timing the calls, glFinish (the GPU) and eglSwapBuffers apart. */
+enum { QUADS = 1000 };
+static GLfloat g_quad_vertices[QUADS * 4 * 2];
+static GLubyte g_quad_colours[QUADS * 4 * 4];
+static GLfloat g_tri_vertices[QUADS * 6 * 2];
+static GLubyte g_tri_colours[QUADS * 6 * 4];
+static GLuint g_vbo;
+
+static void make_geometry(void)
 {
-	(void)t;
-	double start = now_seconds();
-	begin_2d(0.0f, 0.0f, 0.0f);
-	glBegin(GL_QUADS);
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < QUADS; i++) {
 		float x = (float)(i % 40) / 40.0f, y = (float)(i / 40) / 25.0f;
-		glColor3ub((GLubyte)(i * 7), (GLubyte)(i * 13), (GLubyte)(i * 29));
-		glVertex2f(x, y);
-		glVertex2f(x + 0.02f, y);
-		glVertex2f(x + 0.02f, y + 0.03f);
-		glVertex2f(x, y + 0.03f);
+		const float corner[4][2] = { { x, y }, { x + 0.02f, y }, { x + 0.02f, y + 0.03f }, { x, y + 0.03f } };
+		const int tri[6] = { 0, 1, 2, 0, 2, 3 };
+		GLubyte c[4] = { (GLubyte)(i * 7), (GLubyte)(i * 13), (GLubyte)(i * 29), 255 };
+		for (int k = 0; k < 4; k++) {
+			g_quad_vertices[(i * 4 + k) * 2] = corner[k][0];
+			g_quad_vertices[(i * 4 + k) * 2 + 1] = corner[k][1];
+			memcpy(&g_quad_colours[(i * 4 + k) * 4], c, 4);
+		}
+		for (int k = 0; k < 6; k++) {
+			g_tri_vertices[(i * 6 + k) * 2] = corner[tri[k]][0];
+			g_tri_vertices[(i * 6 + k) * 2 + 1] = corner[tri[k]][1];
+			memcpy(&g_tri_colours[(i * 6 + k) * 4], c, 4);
+		}
+	}
+	glGenBuffers(1, &g_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tri_vertices), g_tri_vertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+static void way_empty(void)
+{
+}
+
+static void way_immediate_quads(void)
+{
+	glBegin(GL_QUADS);
+	for (int i = 0; i < QUADS * 4; i++) {
+		glColor4ubv(&g_quad_colours[i * 4]);
+		glVertex2fv(&g_quad_vertices[i * 2]);
 	}
 	glEnd();
-	g_draw_seconds += now_seconds() - start;
-	g_frames++;
 }
-static int check_load(char *detail, size_t cap)
+
+static void way_immediate_triangles(void)
 {
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < QUADS * 6; i++) {
+		glColor4ubv(&g_tri_colours[i * 4]);
+		glVertex2fv(&g_tri_vertices[i * 2]);
+	}
+	glEnd();
+}
+
+static void way_client_arrays(void)
+{
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glVertexPointer(2, GL_FLOAT, 0, g_tri_vertices);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, g_tri_colours);
+	glDrawArrays(GL_TRIANGLES, 0, QUADS * 6);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+static void way_vbo(void)
+{
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+	glVertexPointer(2, GL_FLOAT, 0, (const void *)0);
+	glColor4ub(200, 120, 40, 255);
+	glDrawArrays(GL_TRIANGLES, 0, QUADS * 6);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+static void measure(const char *name, void (*way)(void))
+{
+	double submit = 0, finish = 0, swap = 0;
+	int frames = 0;
+	double start = now_seconds(), measured_from = start + 2.0;
+	for (;;) {
+		double t0 = now_seconds();
+		if (t0 - start >= 6.0)
+			break;
+		begin_2d(0.0f, 0.0f, 0.0f);
+		way();
+		double t1 = now_seconds();
+		glFinish();
+		double t2 = now_seconds();
+		eglSwapBuffers(g_display, g_surface);
+		double t3 = now_seconds();
+		if (t0 >= measured_from) {
+			submit += t1 - t0;
+			finish += t2 - t1;
+			swap += t3 - t2;
+			frames++;
+		}
+	}
 	GLenum e = glGetError();
-	double ms = g_frames ? g_draw_seconds * 1000.0 / g_frames : 0.0;
-	snprintf(detail, cap, "(%d frames, %.2f ms per frame to submit; glGetError 0x%x)", g_frames, ms, e);
-	return e == GL_NO_ERROR && g_frames > 0;
+	double total = submit + finish + swap;
+	char detail[200];
+	snprintf(detail, sizeof(detail), "(%.1f fps; per frame: calls %.2f ms, glFinish %.2f ms, swap %.2f ms; glGetError 0x%x)",
+	         frames && total > 0 ? frames / total : 0.0, frames ? submit * 1000 / frames : 0.0,
+	         frames ? finish * 1000 / frames : 0.0, frames ? swap * 1000 / frames : 0.0, e);
+	result(name, e == GL_NO_ERROR && frames > 0, detail);
 }
 
 int main(void)
@@ -396,11 +479,13 @@ int main(void)
 	run("5 alpha test and blending", draw_alpha, check_alpha, 4.0);
 	run("6 push/pop attrib, polygon offset", draw_attrib, check_attrib, 2.0);
 
-	double start = now_seconds();
 	eglSwapInterval(g_display, 0);
-	run("7 1,000 quads per frame", draw_load, check_load, 5.0);
-	double total = now_seconds() - start;
-	fprintf(stderr, "a2: load: %d frames in %.2f s, %.1f fps without vsync\n", g_frames, total, g_frames / total);
+	make_geometry();
+	measure("7a empty frame", way_empty);
+	measure("7b immediate, 1,000 quads", way_immediate_quads);
+	measure("7c immediate, 2,000 triangles", way_immediate_triangles);
+	measure("7d client arrays, 2,000 triangles", way_client_arrays);
+	measure("7e vertex buffer, 2,000 triangles", way_vbo);
 
 	fprintf(stderr, "a2: phase 0 done: %d check(s) failed\n", g_failures);
 	fflush(stderr);

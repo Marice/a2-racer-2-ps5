@@ -40,5 +40,5 @@ cp "$workspace/stk-ps5/pkg/stubs/"*.so "$build/pkg/stubs/"
 mkdir -p "$title/sce_module"
 cp "$workspace/stk-ps5/pkg/PPSA69421/sce_module/libc.prx" "$title/sce_module/libc.prx"
 cp "$here/param.json" "$title/sce_sys/param.json"
-cp "$workspace/stk-ps5/sce_sys/icon0.png" "$title/sce_sys/icon0.png" # placeholder icon for the check only
+cp "$root/sce_sys/icon0.png" "$title/sce_sys/icon0.png"
 ls -la "$title" "$title/sce_sys"
