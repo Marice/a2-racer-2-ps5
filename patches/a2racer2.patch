@@ -1,3 +1,37 @@
+diff --git a/port/src/cops.c b/port/src/cops.c
+index e6da1cb..48e8ca7 100644
+--- a/port/src/cops.c
++++ b/port/src/cops.c
+@@ -131,6 +131,16 @@ int a2_cops_in_pursuit(const a2_cops *c)
+ 
+ int a2_cops_count(const a2_cops *c) { return c ? c->count : 0; }
+ 
++int a2_cops_chasing_player(const a2_cops *c)
++{
++    for (int r = 0; c && r < RECORDS; r++) {
++        int cop = c->rec[r].cop;
++        if (cop >= 0 && cop < c->count && c->rec[r].target == T_PLAYER && c->cops[cop].siren)
++            return 1;
++    }
++    return 0;
++}
++
+ int a2_cops_take_voice(a2_cops *c)
+ {
+     if (!c)
+diff --git a/port/src/cops.h b/port/src/cops.h
+index 7600129..6900e69 100644
+--- a/port/src/cops.h
++++ b/port/src/cops.h
+@@ -69,6 +69,8 @@ void a2_cops_draw(const a2_cops *c, const a2_scene *scene, int near_chunk, int r
+ int a2_cops_times_caught(const a2_cops *c);
+ /* Non-zero while a siren is on. */
+ int a2_cops_in_pursuit(const a2_cops *c);
++/* Non-zero while a cop with its siren on chases the player (not another racer). */
++int a2_cops_chasing_player(const a2_cops *c);
+ /* The language.ini id of the banner to show, or 0.  `*age` is its age in
+  * seconds so the caller can fade it out. */
+ int a2_cops_message(const a2_cops *c, float *age);
 diff --git a/port/src/font.c b/port/src/font.c
 index ef08314..a7323b3 100644
 --- a/port/src/font.c
@@ -24,7 +58,7 @@ index ef08314..a7323b3 100644
          glVertex2f(cx, y + h);
          cx += w + f->spacing * scale;
 diff --git a/port/src/main.c b/port/src/main.c
-index 0a87ad2..2d8019d 100644
+index 0a87ad2..5829652 100644
 --- a/port/src/main.c
 +++ b/port/src/main.c
 @@ -517,13 +517,18 @@ static void hud_radar(radar_map *m, const a2_scene *scene, const a2_sprites *hud
@@ -47,7 +81,7 @@ index 0a87ad2..2d8019d 100644
      glTexCoord2f(u0, v1);
      glVertex2f(ox, oy + H * k);
      glEnd();
-@@ -674,11 +679,31 @@ static int joy_pos(int raw, int reverse)
+@@ -674,11 +679,34 @@ static int joy_pos(int raw, int reverse)
      return v < 0 ? 0 : v > 100 ? 100 : v;
  }
  
@@ -55,6 +89,9 @@ index 0a87ad2..2d8019d 100644
 +/* The DualSense as a wheel (ps5/a2_ps5_input.c): steering, throttle and brake
 + * as DEVICE 3 gives them, turbo and handbrake as its buttons 2 and 1. */
 +int a2ps5_drive(float *steer, float *throttle, float *brake, int *turbo, int *handbrake);
++/* The DualSense's light bar flashes blue and red while the police chase the
++ * player (ps5/a2_ps5_input.c, decision log D7). */
++void a2ps5_police(int chased);
 +#endif
 +
  static a2_input read_input(int device, SDL_Joystick *joy, const Uint8 *k, int key_left,
@@ -79,7 +116,7 @@ index 0a87ad2..2d8019d 100644
      if (device == 2) {
          /* Joypad.  set_device(2) binds the stick and buttons to the keys
           * (0x4245d2, set_joystick_keys 0x46ec80): stick left LEFT, right
-@@ -900,13 +925,18 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
+@@ -900,13 +928,18 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
          glEnable(GL_TEXTURE_2D);
          glBindTexture(GL_TEXTURE_2D, ls->tex);
          glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -99,7 +136,7 @@ index 0a87ad2..2d8019d 100644
          glTexCoord2f(0.0f, 1.0f);
          glVertex2f(x0, y0 + 480.0f * k);
          glEnd();
-@@ -937,9 +967,10 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
+@@ -937,9 +970,10 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
      SDL_PumpEvents();
  }
  
@@ -112,7 +149,7 @@ index 0a87ad2..2d8019d 100644
  void a2web_gl_reset(void);
  int a2view_main(int argc, char **argv)
  #else
-@@ -1059,7 +1090,7 @@ int main(int argc, char **argv)
+@@ -1059,7 +1093,7 @@ int main(int argc, char **argv)
          fprintf(stderr, "SDL_GL_CreateContext: %s\n", SDL_GetError());
          return 1;
      }
@@ -121,7 +158,7 @@ index 0a87ad2..2d8019d 100644
      a2web_gl_reset();
  #endif
      fprintf(stderr, "GL %s / %s\n", (const char *)glGetString(GL_VERSION),
-@@ -1927,7 +1958,7 @@ int main(int argc, char **argv)
+@@ -1927,7 +1961,7 @@ int main(int argc, char **argv)
  
      unsigned flag_tex = 0; /* S_SFX for the finish flag, loaded at first use */
      while (running) {
@@ -130,7 +167,17 @@ index 0a87ad2..2d8019d 100644
          /* The canvas's size is the page's (CSS), not the 1280x960 asked for,
           * and no resize event says so at the start: draw at what it really
           * is, or the viewport and the HUD run off its edges. */
-@@ -4516,10 +4547,13 @@ int main(int argc, char **argv)
+@@ -2747,6 +2781,9 @@ int main(int argc, char **argv)
+              * first chase every police car shows it.  One sheet, so every
+              * police car flashes together, the player's too in COP MODE.
+              * 0x42ae90 does nothing without texturecopy. */
++#ifdef A2_PS5
++            a2ps5_police(a2_cops_chasing_player(cops));
++#endif
+             if (texture_copy && hud) {
+                 int on = a2_cops_in_pursuit(cops);
+                 Uint32 now = SDL_GetTicks();
+@@ -4516,10 +4553,13 @@ int main(int argc, char **argv)
                      if (age < 0.15f) {
                          glDisable(GL_TEXTURE_2D);
                          glColor4f(1.0f, 1.0f, 1.0f, 1.0f - age / 0.15f);

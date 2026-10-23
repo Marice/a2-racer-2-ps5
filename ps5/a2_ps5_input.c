@@ -411,6 +411,35 @@ int a2ps5_drive(float *steer, float *throttle, float *brake, int *turbo, int *ha
 	return 1;
 }
 
+/* The police: the light bar flashes blue and red while a cop chases the player (decision log D7). */
+typedef struct {
+	uint8_t r, g, b, reserved;
+} pad_color;
+int scePadSetLightBar(int handle, const pad_color *color);
+int scePadResetLightBar(int handle);
+
+void a2ps5_police(int chased)
+{
+	static int flashing, red;
+	static uint32_t switched;
+	if (g_pad < 0)
+		return;
+	if (!chased) {
+		if (flashing)
+			scePadResetLightBar(g_pad); /* the console's own colour again */
+		flashing = 0;
+		return;
+	}
+	uint32_t now = SDL_GetTicks();
+	if (flashing && now - switched < 250)
+		return;
+	flashing = 1;
+	switched = now;
+	red = !red;
+	const pad_color blue = {0, 40, 255, 0}, siren_red = {255, 0, 0, 0};
+	scePadSetLightBar(g_pad, red ? &siren_red : &blue);
+}
+
 /* The race runs inside the menu (src/menu/a2menu.c run_race): its layout while it does. */
 int __real_a2view_main(int argc, char **argv);
 int __wrap_a2view_main(int argc, char **argv)
@@ -419,5 +448,8 @@ int __wrap_a2view_main(int argc, char **argv)
 	g_camera = 0;
 	int r = __real_a2view_main(argc, argv);
 	g_in_race = 0;
+	a2ps5_police(0);
+	fprintf(stderr, "a2: trace: the race returned %d\n", r);
+	fflush(stderr);
 	return r;
 }

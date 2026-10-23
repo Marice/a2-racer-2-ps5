@@ -23,7 +23,7 @@ set(A2_SOURCES
   src/menu/mui.c src/menu/massets.c src/menu/mcareer.c src/menu/mdata.c src/menu/mgfx.c)
 list(TRANSFORM A2_SOURCES PREPEND "${UPSTREAM}/")
 
-set(PS5_SOURCES ps5/a2_ps5_main.c ps5/a2_ps5_gl.c ps5/a2_ps5_disc.c ps5/a2_ps5_screen.c ps5/a2_ps5_input.c)
+set(PS5_SOURCES ps5/a2_ps5_main.c ps5/a2_ps5_gl.c ps5/a2_ps5_disc.c ps5/a2_ps5_screen.c ps5/a2_ps5_input.c ps5/a2_ps5_trace.c)
 
 add_executable(a2racer2 ${A2_SOURCES} ${PS5_SOURCES} ${PROSPERO_SUPPORT_SOURCES})
 set_source_files_properties(${A2_SOURCES} ${PS5_SOURCES} PROPERTIES COMPILE_OPTIONS "-std=gnu99")
@@ -39,6 +39,9 @@ set(A2_GL_WRAPS
   -Wl,--wrap=SDL_GL_SetAttribute -Wl,--wrap=SDL_GL_SetSwapInterval
   # The DualSense and the PS5's keyboard as the game's input (ps5/a2_ps5_input.c), and the race's layout while
   # a2view_main runs.
-  -Wl,--wrap=SDL_PollEvent -Wl,--wrap=SDL_GetKeyboardState -Wl,--wrap=SDL_StartTextInput -Wl,--wrap=a2view_main)
+  -Wl,--wrap=SDL_PollEvent -Wl,--wrap=SDL_GetKeyboardState -Wl,--wrap=SDL_StartTextInput -Wl,--wrap=a2view_main
+  # The step from a race back to the menu, traced; eglTerminate kept from SDL (ps5/a2_ps5_trace.c, D6).
+  -Wl,--wrap=eglTerminate -Wl,--wrap=SDL_Quit -Wl,--wrap=SDL_Init -Wl,--wrap=SDL_InitSubSystem
+  -Wl,--wrap=SDL_OpenAudioDevice -Wl,--wrap=SDL_CloseAudioDevice -Wl,--wrap=SDL_DestroyWindow)
 string(REPLACE ";" " " A2_GL_WRAPS_STR "${A2_GL_WRAPS}")
 set_property(TARGET a2racer2 APPEND_STRING PROPERTY LINK_FLAGS " ${A2_GL_WRAPS_STR} ${PS5_FINAL_LINK_FLAGS}")

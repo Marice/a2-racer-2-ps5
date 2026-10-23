@@ -74,6 +74,8 @@ void a2ps5_gl_swap(void)
  * both carry the menu's and each race's state into the next (src/main.c, src/menu/a2menu.c call it). */
 void a2web_gl_reset(void)
 {
+	fprintf(stderr, "a2: trace: GL state reset\n");
+	fflush(stderr);
 	glUseProgram(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
