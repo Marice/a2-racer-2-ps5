@@ -21,12 +21,19 @@ EGLBoolean __wrap_eglTerminate(EGLDisplay display)
 	return EGL_TRUE;
 }
 
+/* The race ends with SDL_Quit and the menu calls SDL_Init again (upstream's one-program path, made for the web).
+   On the PS5 SDL_Init after SDL_Quit ended the title (signal 11 inside SDL_Init, D8), so the race's quit is left
+   out: SDL stays up from the menu through every race. The race closes its own audio device before. */
+int a2ps5_in_race(void);
 void __real_SDL_Quit(void);
 void __wrap_SDL_Quit(void)
 {
+	if (a2ps5_in_race()) {
+		trace("SDL_Quit at the end of a race left out: SDL stays up for the menu");
+		return;
+	}
 	trace("SDL_Quit");
 	__real_SDL_Quit();
-	trace("SDL_Quit done");
 }
 
 int __real_SDL_Init(Uint32 flags);
