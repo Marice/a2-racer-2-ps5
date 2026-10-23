@@ -10,7 +10,7 @@ set -euo pipefail
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 workspace=$(cd -- "$root/.." && pwd)
-title_id=PPSA69427
+title_id=PPSA69428
 : "${PS5_PAYLOAD_SDK:=/opt/ps5-payload-sdk}"
 : "${PS5_NATIVE_TOOL:=$workspace/olise-player/build/host/ps5-native-tool}"
 : "${PS5_STUBS:=$workspace/stk-ps5/pkg/stubs}"

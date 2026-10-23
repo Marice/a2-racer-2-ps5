@@ -37,8 +37,8 @@ int ps5_log_ready = 0;
 /* The folders a title can turn up in; the log goes next to the game. */
 static const char* const LOG_DIRS[] = {
 	"/app0",
-	"/system_ex/app/PPSA69427",
-	"/mnt/sandbox/PPSA69427_000/app0",
+	"/system_ex/app/PPSA69428",
+	"/mnt/sandbox/PPSA69428_000/app0",
 };
 
 __attribute__((constructor(101)))

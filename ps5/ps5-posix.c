@@ -253,8 +253,8 @@ int __real_closedir(DIR* dir);
 /* The places the title folder shows up under, longest first so a prefix of
    another does not match early. */
 static const char* const kTitleRoots[] = {
-	"/mnt/sandbox/PPSA69427_000/app0",
-	"/system_ex/app/PPSA69427",
+	"/mnt/sandbox/PPSA69428_000/app0",
+	"/system_ex/app/PPSA69428",
 	"/app0",
 };
 
