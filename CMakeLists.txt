@@ -23,7 +23,7 @@ set(A2_SOURCES
   src/menu/mui.c src/menu/massets.c src/menu/mcareer.c src/menu/mdata.c src/menu/mgfx.c)
 list(TRANSFORM A2_SOURCES PREPEND "${UPSTREAM}/")
 
-set(PS5_SOURCES ps5/a2_ps5_main.c ps5/a2_ps5_gl.c ps5/a2_ps5_disc.c ps5/a2_ps5_screen.c)
+set(PS5_SOURCES ps5/a2_ps5_main.c ps5/a2_ps5_gl.c ps5/a2_ps5_disc.c ps5/a2_ps5_screen.c ps5/a2_ps5_input.c)
 
 add_executable(a2racer2 ${A2_SOURCES} ${PS5_SOURCES} ${PROSPERO_SUPPORT_SOURCES})
 set_source_files_properties(${A2_SOURCES} ${PS5_SOURCES} PROPERTIES COMPILE_OPTIONS "-std=gnu99")
@@ -36,6 +36,9 @@ target_link_libraries(a2racer2 PRIVATE SDL2::SDL2-static OpenGL::GL m)
 set(A2_GL_WRAPS
   -Wl,--wrap=SDL_CreateWindow -Wl,--wrap=SDL_GL_CreateContext -Wl,--wrap=SDL_GL_DeleteContext
   -Wl,--wrap=SDL_GL_MakeCurrent -Wl,--wrap=SDL_GL_SwapWindow -Wl,--wrap=SDL_GL_GetDrawableSize
-  -Wl,--wrap=SDL_GL_SetAttribute -Wl,--wrap=SDL_GL_SetSwapInterval)
+  -Wl,--wrap=SDL_GL_SetAttribute -Wl,--wrap=SDL_GL_SetSwapInterval
+  # The DualSense and the PS5's keyboard as the game's input (ps5/a2_ps5_input.c), and the race's layout while
+  # a2view_main runs.
+  -Wl,--wrap=SDL_PollEvent -Wl,--wrap=SDL_GetKeyboardState -Wl,--wrap=SDL_StartTextInput -Wl,--wrap=a2view_main)
 string(REPLACE ";" " " A2_GL_WRAPS_STR "${A2_GL_WRAPS}")
 set_property(TARGET a2racer2 APPEND_STRING PROPERTY LINK_FLAGS " ${A2_GL_WRAPS_STR} ${PS5_FINAL_LINK_FLAGS}")

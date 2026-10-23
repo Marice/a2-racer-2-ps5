@@ -24,7 +24,7 @@ index ef08314..a7323b3 100644
          glVertex2f(cx, y + h);
          cx += w + f->spacing * scale;
 diff --git a/port/src/main.c b/port/src/main.c
-index 0a87ad2..00fd663 100644
+index 0a87ad2..2d8019d 100644
 --- a/port/src/main.c
 +++ b/port/src/main.c
 @@ -517,13 +517,18 @@ static void hud_radar(radar_map *m, const a2_scene *scene, const a2_sprites *hud
@@ -47,7 +47,39 @@ index 0a87ad2..00fd663 100644
      glTexCoord2f(u0, v1);
      glVertex2f(ox, oy + H * k);
      glEnd();
-@@ -900,13 +905,18 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
+@@ -674,11 +679,31 @@ static int joy_pos(int raw, int reverse)
+     return v < 0 ? 0 : v > 100 ? 100 : v;
+ }
+ 
++#ifdef A2_PS5
++/* The DualSense as a wheel (ps5/a2_ps5_input.c): steering, throttle and brake
++ * as DEVICE 3 gives them, turbo and handbrake as its buttons 2 and 1. */
++int a2ps5_drive(float *steer, float *throttle, float *brake, int *turbo, int *handbrake);
++#endif
++
+ static a2_input read_input(int device, SDL_Joystick *joy, const Uint8 *k, int key_left,
+                            int key_right, int key_up, int key_down, int key_turbo,
+                            int key_handbrake)
+ {
+     a2_input in = {0};
++#ifdef A2_PS5
++    if (a2ps5_drive(&in.steer, &in.throttle, &in.brake, &in.turbo, &in.handbrake)) {
++        in.analog = 1;
++        if (in.steer < 0.0f)
++            in.keys |= A2_KEY_LEFT;
++        if (in.steer > 0.0f)
++            in.keys |= A2_KEY_RIGHT;
++        if (in.throttle > 0.0f)
++            in.keys |= A2_KEY_UP;
++        if (in.brake > 0.0f)
++            in.keys |= A2_KEY_DOWN;
++        return in;
++    }
++#endif
+     if (device == 2) {
+         /* Joypad.  set_device(2) binds the stick and buttons to the keys
+          * (0x4245d2, set_joystick_keys 0x46ec80): stick left LEFT, right
+@@ -900,13 +925,18 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
          glEnable(GL_TEXTURE_2D);
          glBindTexture(GL_TEXTURE_2D, ls->tex);
          glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -67,7 +99,7 @@ index 0a87ad2..00fd663 100644
          glTexCoord2f(0.0f, 1.0f);
          glVertex2f(x0, y0 + 480.0f * k);
          glEnd();
-@@ -937,9 +947,10 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
+@@ -937,9 +967,10 @@ static void load_screen(load_screen_t *ls, SDL_Window *win, const a2_archive *rc
      SDL_PumpEvents();
  }
  
@@ -80,7 +112,7 @@ index 0a87ad2..00fd663 100644
  void a2web_gl_reset(void);
  int a2view_main(int argc, char **argv)
  #else
-@@ -1059,7 +1070,7 @@ int main(int argc, char **argv)
+@@ -1059,7 +1090,7 @@ int main(int argc, char **argv)
          fprintf(stderr, "SDL_GL_CreateContext: %s\n", SDL_GetError());
          return 1;
      }
@@ -89,7 +121,7 @@ index 0a87ad2..00fd663 100644
      a2web_gl_reset();
  #endif
      fprintf(stderr, "GL %s / %s\n", (const char *)glGetString(GL_VERSION),
-@@ -1927,7 +1938,7 @@ int main(int argc, char **argv)
+@@ -1927,7 +1958,7 @@ int main(int argc, char **argv)
  
      unsigned flag_tex = 0; /* S_SFX for the finish flag, loaded at first use */
      while (running) {
@@ -98,7 +130,7 @@ index 0a87ad2..00fd663 100644
          /* The canvas's size is the page's (CSS), not the 1280x960 asked for,
           * and no resize event says so at the start: draw at what it really
           * is, or the viewport and the HUD run off its edges. */
-@@ -4516,10 +4527,13 @@ int main(int argc, char **argv)
+@@ -4516,10 +4547,13 @@ int main(int argc, char **argv)
                      if (age < 0.15f) {
                          glDisable(GL_TEXTURE_2D);
                          glColor4f(1.0f, 1.0f, 1.0f, 1.0f - age / 0.15f);

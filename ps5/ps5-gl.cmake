@@ -73,6 +73,8 @@ set(PS5_SYSTEM_LIBS
     "/opt/ps5-payload-sdk/target/lib/libSceKeyboard.so"
     "/opt/ps5-payload-sdk/target/lib/libSceUserService.so"
     "/opt/ps5-payload-sdk/target/lib/libSceImeDialog.so"
+    # The PS5's keyboard module is loaded through it (ps5/a2_ps5_input.c).
+    "/opt/ps5-payload-sdk/target/lib/libSceSysmodule.so"
     "/opt/ps5-payload-sdk/target/lib/libSceSystemService.so"
     "/opt/ps5-payload-sdk/target/lib/libSceVideoOut.so"
     "/opt/ps5-payload-sdk/target/lib/libSceAudioOut.so"
